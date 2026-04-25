@@ -1,0 +1,188 @@
+
+// versione FAST
+
+int pinmotori[6] = {10, 6, 7, 4, 5, 9};  // Array motori
+ int matrice[3][2] = { 
+  //marcia  0=avanti  1=indietro 2=stop
+  {0, 1}, 
+  {1, 0},
+  {1, 1}
+ }; 
+
+ int triggerpin=12;
+
+ int speed=90; 
+
+ int staticA=0;
+ int staticB=0;
+
+ int sensoreA=8;
+ int sensoreB=11;
+
+ int sensoreAX=3;
+ int sensoreBX=2;
+
+ int A=1;
+ int B=1;
+
+ unsigned long tempocorrente;
+ unsigned long ultimotempo;
+
+ volatile int AX = 0;
+ volatile int BX = 0;
+
+ int accensione;
+
+ void setup() {
+ 
+ //Serial.begin(9600); 
+
+ for (int x = 0; x < 6; x++) {
+ pinMode(pinmotori[x] , OUTPUT);
+ }
+
+ pinMode(sensoreA, INPUT);
+ pinMode(sensoreB, INPUT);
+ pinMode(sensoreAX, INPUT);
+ pinMode(sensoreBX, INPUT);
+
+    attachInterrupt(digitalPinToInterrupt(sensoreAX), interruptAX, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(sensoreBX), interruptBX, CHANGE);
+
+ pinMode(triggerpin, INPUT);
+
+ pinMode(13, INPUT); // accensione
+        speed = map(analogRead(A0), 0, 1023, 70, 150);  // Mappa il valore a una velocità compresa tra 70 e 150
+ 
+ }
+
+ void loop() {
+
+ accensione = (PINB & (1 << PINB5));  // Leggi il pin 13 usando il registro PINB
+
+ if (accensione==LOW) {
+         //Serial.println("Fermo");
+         motoreSX(0,2);
+         motoreDX(0,2);
+         speed = map(analogRead(A0), 0, 1023, 70, 150);  // Mappa il valore a una velocità compresa tra 70 e 150
+         return;  
+    }
+
+//Serial.println("acceso");
+// *******************
+
+motoreSX(speed,staticA);
+motoreDX(speed,staticB);
+
+if (!(PINB & (1 << PINB4))) { 
+    svolta(); 
+  }
+
+ if (!AX && !BX){
+ lettura();
+ if (A && B ) {
+      motoreSX(speed, 0);
+      motoreDX(speed, 0);
+      lineacentrale();
+}
+}
+
+ if (AX && BX) {
+
+ staticA=0, staticB=0;
+
+ } else {
+
+ A = AX ? 1: (PINB & (1 << PB0)) ? 1 : 0;
+ B = BX ? 1: (PINB & (1 << PB3)) ? 1 : 0;
+ 
+ //A = BX ? 0 : (AX ? 1 : (PINB & (1 << PB0)) ? 1 : 0);
+ //B = AX ? 0 : (BX ? 1 : (PINB & (1 << PB3)) ? 1 : 0);
+
+( A || B) && (staticA = A, staticB = B, ultimotempo=0);
+
+if (!A && !B ) {
+tempocorrente=millis();
+(!ultimotempo) && (ultimotempo=tempocorrente);
+
+if (tempocorrente - ultimotempo >= 1500) {
+   ultimotempo=0;
+   staticA=0;
+   staticB=0;
+    } }
+
+(staticA && staticB) && (staticA=0, staticB=0);
+
+ }
+ }
+
+ void motoreSX(int velocita, int marcia) {
+   //marcia  0=avanti  1=indietro 2=stop
+  digitalWrite(pinmotori[1], matrice[marcia][0] ) ;
+  digitalWrite(pinmotori[2], matrice[marcia][1] );
+  analogWrite(pinmotori[0], velocita);
+
+ }
+
+ void motoreDX(int velocita, int marcia) {
+   //marcia  0=avanti  1=indietro 2=stop
+  digitalWrite(pinmotori[3], matrice[marcia][0] ) ;
+  digitalWrite(pinmotori[4], matrice[marcia][1] );
+  analogWrite(pinmotori[5], velocita);
+}
+ 
+ void lettura() {
+ //A=digitalRead(sensoreA);
+ //B=digitalRead(sensoreB);
+
+  A = (PINB & (1 << PB0)) ? 1 : 0;  // Legge il pin 8
+  B = (PINB & (1 << PB3)) ? 1 : 0;  // Legge il pin 11
+  }
+ 
+
+void interruptAX() {
+AX = PIND & (1 << PD3) ? 1 : 0;
+ }
+ 
+
+ void interruptBX() {
+ BX = PIND & (1 << PD2) ? 1 : 0;
+ }
+
+ void lineacentrale() {
+ 
+  do {
+   if (!(PINB & (1 << PINB4))) { 
+    svolta(); 
+    }
+    
+   if (AX || BX) break;
+   lettura(); 
+    } while (A && B);
+   }
+
+
+void svolta() {
+
+//stop
+ motoreSX(speed,2);
+ motoreDX(speed,2);
+ delay(100);
+
+// indietro
+ motoreSX(speed,1);
+ motoreDX(speed,1);
+ delay(750);
+
+// gira a 180 gradi
+ motoreSX(90,1);
+ motoreDX(90,0);
+ delay(700);
+
+//dritto
+ motoreDX(speed,0);
+ motoreSX(speed,0);
+ staticA=0;
+ staticB=0;
+
+ }
