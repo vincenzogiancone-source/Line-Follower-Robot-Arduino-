@@ -1,1 +1,127 @@
+This project is a line-following robot designed to track a black line on a light surface using infrared sensors.
+The robot features two front wheels, each driven by a 5V DC motor, and a rear caster wheel for stability and smooth movement.
+The sensing system consists of four IR sensors mounted on the front underside: two central sensors aligned with the typical line width, 
+and two outer sensors spaced about 2 cm apart to detect deviations or intersections. The sensors detect light intensity (black/white contrast) and provide 
+a direct digital output (0/1). Each sensor includes a dedicated 10kΩ potentiometer for threshold adjustment.
+Motor control is handled by a L298 Motor Driver, driven by an Arduino Uno.
+The Arduino uses 6 pins for motor control and 4 pins for sensor input.
+The robot also includes a 10kΩ potentiometer for speed adjustment and a front-facing light sensor used for obstacle detection. 
+When an obstacle is detected, the robot performs an automatic sequence: stop, reverse, rotate approximately 180°, and resume forward motion.
+Due to its weight distribution — with most of the mass concentrated at the rear بسبب the batteries and the single caster wheel — the robot tends to drift slightly at intersections,
+especially at higher speeds. This results in a dynamic and playful behavior while still maintaining reliable line tracking.
+The system is powered by six 1.5V batteries and operates reliably in non-direct lighting conditions.
 
+
+Control Logic
+
+The robot is controlled using a high-speed reactive logic optimized through direct register access (PORTB and PIND) instead of standard `digitalRead()` calls, significantly 
+reducing latency. The central sensors determine the main movement:
+
+both active → move forward
+one active → trajectory correction
+
+The outer sensors (handled also via hardware interrupts) allow fast response to line changes and intersections.
+The system maintains an internal state (`staticA`, `staticB`) to store the last valid direction, enabling recovery when the line is temporarily lost.
+If no sensor detects the line for a certain time (~1.5 seconds), the robot resets its state and attempts reacquisition.
+Speed is dynamically adjusted using an analog potentiometer and translated into PWM signals for motor control.
+
+Hardware
+
+* **Microcontroller:** Arduino Uno
+* **Motor Driver:** L298N
+* **Motors:** 2x DC motors (5V)
+* **Wheels:**
+
+  * 2 front drive wheels
+  * 1 rear caster wheel
+* **Sensors:**
+
+  * 4x IR line sensors (digital output)
+  * 1x front light sensor (obstacle detection)
+* **Controls:**
+
+  * 1x potentiometer (speed adjustment)
+* **Power Supply:**
+
+  * 6x 1.5V batteries
+
+ Sensor Layout
+
+* **2 central sensors** → aligned with the line (main tracking)
+* **2 outer sensors (~2 cm apart)** → detect line loss and intersections
+
+Sensors detect light intensity (black/white contrast only) and output digital signals (0/1).
+
+How It Works
+
+### Line Tracking Logic
+
+* Both central sensors active → move forward
+* One sensor active → correct direction
+* No sensors active → use last known direction (memory)
+* No detection for ~1.5 seconds → reset and reacquire line
+
+The robot uses internal state variables to maintain direction when the line is temporarily lost.
+
+
+High-Speed Optimization
+
+The code uses **direct register access (PORTB, PIND)** instead of `digitalRead()` to:
+
+* reduce latency
+* increase responsiveness
+* improve tracking at higher speeds
+
+Obstacle Handling
+
+When an obstacle is detected:
+
+1. Stop
+2. Move backward
+3. Rotate ~180°
+4. Resume forward motion
+
+Speed Control
+
+Speed is controlled via a potentiometer:
+
+* Read from analog input
+* Mapped to PWM range
+* Dynamically updated during operation
+
+Special Behavior
+
+Due to its physical design:
+
+* Rear-heavy (battery placement)
+* Single rear caster wheel
+
+The robot tends to **drift during intersections**, especially at high speed.
+This creates a dynamic and “fun” behavior while still maintaining line tracking without losing control.
+
+
+Pin Configuration
+
+| Function        | Pins                     |
+| --------------- | ------------------------ |
+| Motor control   | 6 pins (PWM + direction) |
+| IR Sensors      | 4 digital pins           |
+| Speed control   | A0                       |
+| Obstacle sensor | Digital pin              |
+| Power switch    | Pin 13                   |
+
+
+Software Features
+
+* Interrupt-based sensor handling (outer sensors)
+* Direction memory system
+* Timeout-based recovery
+* Optimized motor control
+* Fast decision-making loop
+
+
+
+
+
+* fare un **diagramma dei sensori**
+* oppure trasformarlo in un README ancora più “wow” con badge e stile GitHub top 😄
